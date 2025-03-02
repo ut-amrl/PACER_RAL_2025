@@ -4,7 +4,6 @@ import importlib
 import context_dataset
 importlib.reload(context_dataset)
 from context_dataset import ContextDataset
-from torchvision.utils import make_grid
 from argparse import ArgumentParser
 from tqdm import tqdm
 from utils import *
@@ -15,6 +14,9 @@ import yaml
 import cv2
 import os
 
+# Add the top-level project directory to the Python path
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 IMG_WIDTH = 32
 
 def increase_contrast(costmap, mask):
@@ -23,8 +25,8 @@ def increase_contrast(costmap, mask):
     costmap = (costmap - min_val) / (max_val - min_val) 
     return costmap   
 
-class ICLDataset(Dataset):
-    def __init__(self, train, pref_config, data_config_path, augment = False, random_invert = False):
+class PACERDataset(Dataset):
+    def __init__(self, train, pref_config, context_data_config_path, augment = False, random_invert = False):
         
         ''' Dataset for training PACER. Consists of a ContextDataset, BEV images, and target costmaps
                 stage 1: no invert, no augment
@@ -41,9 +43,10 @@ class ICLDataset(Dataset):
         self.random_invert = random_invert
         self.pref_config = yaml.load(open(pref_config, 'r'), Loader=yaml.FullLoader)
         self.load() 
-        self.context_data = ContextDataset(train=train, pref_config=pref_config, data_config_path=data_config_path)
+        self.context_data = ContextDataset(train=train, pref_config=pref_config, context_data_config_path=context_data_config_path)
 
-        self.mask_image = cv2.imread("clean_mask.png", cv2.IMREAD_GRAYSCALE)
+        mask_path = os.path.join(project_dir, "scripts/clean_mask.png")
+        self.mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
         self.mask_image = np.array(self.mask_image)
         self.mask_image = cv2.resize(self.mask_image, (256, 128))
         self.mask_image = np.expand_dims(self.mask_image, axis=0)
@@ -56,7 +59,7 @@ class ICLDataset(Dataset):
             pickle_files = self.pref_config["val"]
 
         filenames = [os.path.join(self.pref_config["bev_dir"], f+".pkl") for f in pickle_files]
-        skip = 0
+        filenames = [os.path.join(self.pref_config['dataset_root_dir'], f) for f in filenames]
         for f in tqdm(filenames, desc="Processing Bev images"):
             with open (f, "rb") as f:
                 self.bev_images += pk.load(f)
@@ -71,6 +74,7 @@ class ICLDataset(Dataset):
             pref_dir = [pref_dir[0]]
         # iterate through pref_dir
         for directory in pref_dir:
+            directory = os.path.join(self.pref_config['dataset_root_dir'], directory)
             pref_costmaps = []
             filenames = [os.path.join(directory, f + ".pkl") for f in pickle_files]
             for f in tqdm(filenames, desc=f"Processing Costmaps in {directory}"):
@@ -86,7 +90,7 @@ class ICLDataset(Dataset):
         self.terrains_to_index = self.pref_config['preferences'][0]
         self.terrains = list(self.terrains_to_index.keys())
 
-        extra_terrains_dir = self.pref_config['extra_terrains_dir']
+        extra_terrains_dir = os.path.join(self.pref_config['dataset_root_dir'], self.pref_config['extra_terrains_dir'])
         self.extra_terrains_images  = []
         for file in os.listdir(extra_terrains_dir):
             img = cv2.imread(os.path.join(extra_terrains_dir, file), cv2.IMREAD_COLOR)
@@ -197,19 +201,19 @@ class ICLDataset(Dataset):
         return self.get_regular_sample(idx)
 
 
-class ICLDataModule(pl.LightningDataModule):
-    def __init__(self, pref_config, data_config_path, batch_size=64, num_workers=4, augment = False, random_invert = False):
+class PACERDataModule(pl.LightningDataModule):
+    def __init__(self, pref_config, context_data_config_path, batch_size=64, num_workers=4, augment = False, random_invert = False):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.train_dataset = ICLDataset(train=True,
+        self.train_dataset = PACERDataset(train=True,
                                 pref_config=pref_config,
-                                data_config_path=data_config_path,
+                                context_data_config_path=context_data_config_path,
                                 augment=augment,
                                 random_invert=random_invert)
-        self.val_dataset = ICLDataset(train=False,
+        self.val_dataset = PACERDataset(train=False,
                                 pref_config=pref_config,
-                                data_config_path=data_config_path,
+                                context_data_config_path=context_data_config_path,
                                 augment=augment,
                                 random_invert=random_invert)
 
@@ -228,15 +232,15 @@ if __name__ == '__main__':
     with open(args.paths_file, 'r') as file:
         paths_config = yaml.safe_load(file)
 
-    pref_config = paths_config['Paths']['pref_config']
-    data_config_path = paths_config['Paths']['data_config_path']
+    pref_config = os.path.join(project_dir, paths_config['Paths']['pref_config'])
+    context_data_config_path = os.path.join(project_dir, paths_config['Paths']['context_data_config_path'])
 
-    dataset = ICLDataset(train=True,
+    dataset = PACERDataset(train=True,
                           pref_config=pref_config,
-                          data_config_path=data_config_path, augment=True)
+                          context_data_config_path=context_data_config_path, augment=False)
     dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
     batch = next(iter(dataloader))
     
-    viz_icl_dataset_batch(batch)
+    viz_pacer_dataset_batch(batch)
 
 

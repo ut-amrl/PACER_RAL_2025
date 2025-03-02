@@ -2,15 +2,19 @@ import torch
 import pytorch_lightning as pl
 from argparse import ArgumentParser
 import yaml
-from icl_dataset import ICLDataModule
+from pacer_dataset import PACERDataModule
 import os
-from icl_model import UNET
+from pacer_model import UNET
+
+# Add the top-level project directory to the Python path
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 
 def train(paths_config, random_invert, augment):
     pref_config = paths_config['Paths']['pref_config']
-    data_config_path = paths_config['Paths']['data_config_path']
+    context_data_config_path = paths_config['Paths']['context_data_config_path']
 
-    dm = ICLDataModule(pref_config, data_config_path, num_workers=12,
+    dm = PACERDataModule(pref_config, context_data_config_path, num_workers=12,
                        augment=augment, random_invert=random_invert)
     model = UNET(paths_config)
     save_dir =  paths_config['Paths']['model_save_dir']
@@ -31,8 +35,8 @@ def train(paths_config, random_invert, augment):
 
 def train_from_checkpoint(paths_config, checkpoint_path):
     pref_config = paths_config['Paths']['pref_config']
-    data_config_path = paths_config['Paths']['data_config_path']
-    dm = ICLDataModule(pref_config, data_config_path, num_workers=12, 
+    context_data_config_path = paths_config['Paths']['context_data_config_path']
+    dm = PACERDataModule(pref_config, context_data_config_path, num_workers=12, 
                         augment=augment, random_invert=random_invert)
 
     chkpt = torch.load(checkpoint_path)
@@ -74,6 +78,7 @@ if __name__ == "__main__":
         random_invert = False
         augment = True
 
-    pref_config = paths_config['Paths']['pref_config']
-    data_config_path = paths_config['Paths']['data_config_path']
+
+    pref_config = os.path.join(project_dir, paths_config['Paths']['pref_config'])
+    context_data_config_path = os.path.join(project_dir, paths_config['Paths']['context_data_config_path'])
     train(paths_config, random_invert, augment)

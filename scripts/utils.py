@@ -76,7 +76,7 @@ def viz_contexts(contexts):
     plt.tight_layout()
     plt.savefig("context_viz.png")
 
-def viz_icl_dataset_batch(batch):
+def viz_pacer_dataset_batch(batch):
     # Assume batch_size is the number of examples you want to plot
 
     contexts = batch['context']
@@ -115,5 +115,5 @@ def viz_icl_dataset_batch(batch):
         axs[i, 2].axis('off')
 
     plt.tight_layout()
-    plt.savefig("icl_dataset_batch.png")
+    plt.savefig("pacer_dataset_batch.png")
     plt.close('all')

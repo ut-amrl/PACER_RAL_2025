@@ -1,0 +1,6 @@
+Paths:
+  context_data_config_path: 'configs/context_data.yaml'
+  pref_config: 'configs/pref_config.yaml'
+  type1_vae32: '/scratch/luisamao/all_terrain/icl_vae_logs/vae_logs_size32/vae-epoch=450-recon_loss=18498.08.ckpt'
+  model_save_dir: '/scratch/luisamao/arthur_logs/'
+  context_encoder_save_dir: '/scratch/luisamao/arthur_logs/'

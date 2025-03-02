@@ -4,15 +4,14 @@ import torch.optim as optim
 import pytorch_lightning as pl
 from context_encoder_model import VAE
 from torch.nn import functional as F
-from argparse import ArgumentParser
-import yaml
-from icl_dataset import ICLDataset, ICLDataModule
-import time
-from tqdm import tqdm
 from torchvision.utils import make_grid
 import numpy as np
 import os
 import cv2
+
+# Add the top-level project directory to the Python path
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 
 """ Convolutional block:
     It follows a two 3x3 convolutional layer, each followed by a batch normalization and a relu activation.
@@ -106,15 +105,14 @@ class UNET(pl.LightningModule):
         """ Costmap output """
         self.outputs = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
+
         if paths_config is not None:
-            vae = VAE().load_from_checkpoint(paths_config['Paths']['type1_vae32'])
+            vae = VAE().load_from_checkpoint(os.path.join(project_dir, paths_config['Paths']['type1_vae32']))
             self.patch_encoder = vae.encoder
         else:
             self.patch_encoder = VAE().encoder
-        current_path = os.path.abspath(__file__)
-        current_dir = os.path.dirname(current_path)
 
-        mask_path = os.path.join(current_dir, "clean_mask.png")
+        mask_path = os.path.join(project_dir, "scripts/clean_mask.png")
         self.mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
         self.mask = cv2.resize(self.mask, (256, 128))
         self.mask = np.array(self.mask)

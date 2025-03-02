@@ -1,0 +1,53 @@
+dataset_root_dir: /scratch/luisamao/pacer_dataset
+
+
+preferences:
+  - 
+    pebble_pavement: 0
+    concrete: 1
+    mulch: 2
+    grass: 3
+    bush: 4
+    marble_rock: 5
+  - 
+    concrete: 0
+    pebble_pavement: 1
+    grass: 2
+    mulch: 3
+    bush: 4
+    marble_rock: 5
+  - 
+    concrete: 0
+    pebble_pavement: 1
+    mulch: 2
+    grass: 3
+    marble_rock: 4
+    bush: 5
+  - 
+    concrete: 0
+    pebble_pavement: 1
+    marble_rock: 2
+    grass: 3
+    bush: 4
+    mulch: 5
+
+bev_dir: bev_pickles/
+extra_terrains_dir: extra_terrains/
+
+costmap_dirs: # this directory must be the same order as the preferences
+  - pref_costmap_pickles/p1/
+  - pref_costmap_pickles/p2/
+  - pref_costmap_pickles/p3/
+  - pref_costmap_pickles/p4/
+
+train:
+  - 2022-11-13-08-48-18 # marble rock and concrete
+  - 2022-11-13-08-52-08 # pebble pavement
+  - 2022-12-13-07-39-25 # concrete and other terrains
+  - 2022-12-14-08-00-59 # bush w concrete and grass
+  - 2022-12-14-08-43-22 # marble rock concrete and grass
+
+val:
+  - 2022-12-14-08-49-07 # marble rock concrete and grass
+  - 2022-12-15-15-21-36 # concrete
+

@@ -14,6 +14,10 @@ import yaml
 import glob
 import os
 
+# Add the top-level project directory to the Python path
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
 random.seed(42)
 IMG_WIDTH = 32
 
@@ -29,7 +33,7 @@ IMG_WIDTH = 32
 
 
 class ContextDataset(Dataset):
-    def __init__(self, train, pref_config, data_config_path, length = 1000):
+    def __init__(self, train, pref_config, context_data_config_path, length = 1000):
         pref_config = pref_config
         self.data_map = [] # preferences, 3-tuple
         self.patch_bank = {}
@@ -38,8 +42,8 @@ class ContextDataset(Dataset):
         self.total = 0
         self.train = train
 
-        cprint('Reading the yaml file at : {}'.format(data_config_path), 'green')
-        self.data_config = yaml.load(open(data_config_path, 'r'), Loader=yaml.FullLoader)
+        cprint('Reading the yaml file at : {}'.format(context_data_config_path), 'green')
+        self.context_data_config = yaml.load(open(context_data_config_path, 'r'), Loader=yaml.FullLoader)
 
         pref_config = yaml.load(open(pref_config, 'r'), Loader=yaml.FullLoader)
         self.config_to_pref_list(pref_config)
@@ -105,13 +109,13 @@ class ContextDataset(Dataset):
     
     def load_data(self):
         if self.train:
-            file_roots = [pickle_files_root for pickle_files_root in self.data_config['train']]
+            file_roots = [pickle_files_root for pickle_files_root in self.context_data_config['train']]
         else:
-            file_roots = [pickle_files_root for pickle_files_root in self.data_config['val']]
+            file_roots = [pickle_files_root for pickle_files_root in self.context_data_config['val']]
 
         for root in tqdm(file_roots, desc="Loading Context Data"):
-            if 'dataset_root_dir' in self.data_config:
-                paths = glob.glob(os.path.join(self.data_config['dataset_root_dir'], os.path.join(root, '*.pkl')))
+            if 'dataset_root_dir' in self.context_data_config:
+                paths = glob.glob(os.path.join(self.context_data_config['dataset_root_dir'], os.path.join(root, '*.pkl')))
             
             label = root.split('/')[-2]
             if label not in self.terrains:
@@ -170,17 +174,17 @@ class ContextDataset(Dataset):
     
 
 class ContextDataModule(pl.LightningDataModule):
-    def __init__(self, pref_config, data_config_path, batch_size=32):
+    def __init__(self, pref_config, context_data_config_path, batch_size=32):
         super().__init__()
         self.batch_size = batch_size
         self.pref_config = pref_config
-        self.data_config_path = data_config_path
+        self.context_data_config_path = context_data_config_path
         self.setup()
 
     def setup(self, stage=None):
-        self.train_dataset = ContextDataset(True, self.pref_config, self.data_config_path)
-        self.val_dataset = ContextDataset(False, self.pref_config, self.data_config_path)
-        self.test_dataset = ContextDataset(False, self.pref_config, self.data_config_path)
+        self.train_dataset = ContextDataset(True, self.pref_config, self.context_data_config_path)
+        self.val_dataset = ContextDataset(False, self.pref_config, self.context_data_config_path)
+        self.test_dataset = ContextDataset(False, self.pref_config, self.context_data_config_path)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -198,10 +202,10 @@ if __name__ == '__main__':
     with open(args.paths_file, 'r') as file:
         paths_config = yaml.safe_load(file)
 
-    pref_config = paths_config['Paths']['pref_config']
-    data_config_path = paths_config['Paths']['data_config_path']
+    pref_config = os.path.join(project_dir, paths_config['Paths']['pref_config'])
+    context_data_config_path = os.path.join(project_dir, paths_config['Paths']['context_data_config_path'])
 
-    dataloader = DataLoader(ContextDataset(True, pref_config, data_config_path), batch_size = 12)
+    dataloader = DataLoader(ContextDataset(True, pref_config, context_data_config_path), batch_size = 12)
     batch = next(iter(dataloader))
     contexts = batch[0]
     viz_contexts(contexts)
