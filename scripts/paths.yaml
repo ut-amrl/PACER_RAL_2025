@@ -1,0 +1,7 @@
+Paths:
+  data_config_path: '/scratch/luisamao/spot_data/classifier_configs/all_data_config.yaml'
+  pref_config: '/scratch/luisamao/spot_data/icl_configs/four_prefs.yaml'
+  type1_vae64: '/scratch/luisamao/all_terrain/icl_vae_logs/vae_logs/vae-epoch=401-recon_loss=67066.42.ckpt'
+  type1_vae32: '/scratch/luisamao/all_terrain/icl_vae_logs/vae_logs_size32/vae-epoch=450-recon_loss=18498.08.ckpt'
+  pref_dir: '/scratch/luisamao/all_terrain/pref_costmaps'
+  bev_image_dir: '/scratch/luisamao/all_terrain/pref_costmaps/bev_pickles'
