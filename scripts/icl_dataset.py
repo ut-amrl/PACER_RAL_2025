@@ -15,6 +15,8 @@ import yaml
 import cv2
 import os
 
+IMG_WIDTH = 32
+
 def increase_contrast(costmap, mask):
     min_val = np.min(costmap[mask > 0])
     max_val = np.max(costmap[mask > 0])
@@ -74,6 +76,8 @@ class ICLDataset(Dataset):
             for f in tqdm(filenames, desc=f"Processing Costmaps in {directory}"):
                     with open (f, "rb") as f:
                         pref_costmaps += pk.load(f)
+            for i in range(len(pref_costmaps)):
+                pref_costmaps[i] = cv2.resize(pref_costmaps[i], (256, 128))
             self.costmaps.append(pref_costmaps)
 
     def load_extra_terrains(self): 
@@ -118,89 +122,45 @@ class ICLDataset(Dataset):
     def get_augmented_sample(self, idx):
         mask = self.mask_image[0]
         bev_costmap = self.costmaps[0][idx]
+        bev_costmap = np.round(bev_costmap * 10) / 10
         bev_image = self.bev_images[idx]
 
-        # resize both
-        bev_image = cv2.resize(bev_image, (256, 128))
-        bev_costmap = cv2.resize(bev_costmap, (256, 128))
-        bev_costmap = np.round(bev_costmap * 5) / 5
-        og_image = bev_image.copy()
+        new_costmap = bev_costmap.copy()
+        bev_image = bev_image.copy()
 
-        # h, w = bev_image.shape
-        # for r in range(h):
-        #     for w in range(w):
-
-
-        val_to_count = {}
-        for i in range(0, 6):
-            v = np.count_nonzero((bev_costmap == (i / 5.0)) & (mask > 0))
-            if (v > 0):
-                val_to_count[(i / 5.0)] = v
-
-        # sort dict by value
-        val_to_count = dict(sorted(val_to_count.items(), key=lambda item: item[1], reverse=True))
-        index_to_terrain_img = {}
-        for key in val_to_count:
-            index_to_terrain_img[int(key*5)] = bev_image
-
-        replaced_indices = set()
-        l = len(index_to_terrain_img)//2
-
-        # randomly choose synthetic terrains
-        sample = random.sample(list(range(len(self.extra_terrains_images))), l)
-
-        # iterate over the first half of val_to_count
-        for key in list(val_to_count.keys())[:l]:
-            replaced_indices.add(int(key*5))
-            index_to_terrain_img[int(key*5)] = self.extra_terrains_images[sample.pop()]
-
-        # replace terrains in the image
-        for i in range(0, bev_image.shape[0]):
-            for j in range(0, bev_image.shape[1]):
-                bev_image[i][j] = index_to_terrain_img[int(bev_costmap[i][j] * 5)][i][j]
+        h, w, c = bev_image.shape
+        unique_costs = {}
+        for r in range(h):
+            for c in range(w):
+                if mask[r][c]:
+                    cost = bev_costmap[r][c]
+                    unique_costs[cost] = unique_costs.get(cost, 0) + 1
+        unique_costs = list(sorted(unique_costs.items(), key=lambda item: item[1], reverse=True))[:3]
+        ordered_costs = sorted(cost for cost, count in unique_costs)
+        synth_terrains = random.sample(self.extra_terrains_images, 3)
+        for i in range(3):
+            bev_image[bev_costmap == unique_costs[i][0]] = synth_terrains[i][bev_costmap == unique_costs[i][0]]
 
         # create a pref ordering from the non-zero keys
-        pref_index_order = [int(i*5) for i in val_to_count.keys()]
+        pref_index_order = [0,1,2]
         random.shuffle(pref_index_order)
 
-        s = set()
-        for i in val_to_count.keys():
-            if val_to_count[i] > 2000 or len(s) < 3:
-                s.add(int(i*5))
-        
-        p = []
-        # make p a list of indices with counts greater than 2000 or length 3
-        for i in pref_index_order:
-            if i in s:
-                p.append(i)
+        pref =  [(pref_index_order[0], pref_index_order[1]),
+                (pref_index_order[0], pref_index_order[2]),
+                (pref_index_order[1], pref_index_order[2])] 
+        random.shuffle(pref)
 
-        pref_ordering = []
-        for i in p:
-            pref_ordering.append([self.terrains[i]])
+        # make context with the synth data
+        context = np.empty((IMG_WIDTH * 2, IMG_WIDTH, 9))
 
-        pref_combos = self.context_data.create_preference_combos(pref_ordering)
-        pref = random.choice(pref_combos)
-        context = self.context_data.get_sample(pref)
-
-        # replace context with the synth data
         for i in range(3):
-            for j in range(2):
-                idx = self.terrains_to_index[pref[i][j]]
-                if idx in replaced_indices:
-                    # choose a random 64x64 patch from the synth image
-                    synth_image = index_to_terrain_img[idx]
-                    w = random.randint(0, synth_image.shape[1]-64)
-                    h = random.randint(0, synth_image.shape[0]-64)
-                    synth_patch = synth_image[h:h+64, w:w+64, :]
-                    synth_patch = img_to_tensor_format(synth_patch, new_size=(32, 32), to_rgb=False, transpose=True, normalize = False)
-                    # replace the corresponding patch in context with the synth data
-                    context[3*i:3*(i+1), 32*j:32*(j+1), :] = synth_patch
+            context[:IMG_WIDTH, :, i*3: (i+1)*3] = synth_terrains[pref[i][0]][:IMG_WIDTH, :IMG_WIDTH, :]
+            context[IMG_WIDTH:, :, i*3: (i+1)*3] = synth_terrains[pref[i][1]][:IMG_WIDTH, :IMG_WIDTH, :]
+        context = np.transpose(context, (2, 0, 1))
 
         # prepare the costmap according to the new pref
-        new_costmap = np.zeros(bev_costmap.shape)
-        for i in range(0, bev_image.shape[0]):
-            for j in range(0, bev_image.shape[1]):
-                new_costmap[i][j] = pref_index_order.index(int(bev_costmap[i][j]*5))/5.0
+        for i in range(3):
+            new_costmap[bev_costmap == unique_costs[pref_index_order[i]][0]] = ordered_costs[i]
 
         bev_image = np.transpose(bev_image, (2, 0, 1)) * self.mask_image
         new_costmap = np.expand_dims(new_costmap, axis=0)
@@ -208,8 +168,8 @@ class ICLDataset(Dataset):
         new_costmap = new_costmap * self.mask_image
 
         return {'context' : context.copy(),
-                'bev_image' : bev_image.copy(),
-                'bev_costmap' : bev_costmap.copy(),
+                'bev_image' : bev_image,
+                'bev_costmap' : new_costmap,
                 'pref' : pref.copy()}
 
     def get_regular_sample(self, idx):
