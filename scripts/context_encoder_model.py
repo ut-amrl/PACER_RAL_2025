@@ -1,9 +1,5 @@
 import pytorch_lightning as pl
-# pl.seed_everything(4321)
-# import numpy as np
 from torch import nn
-# import os
-# os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 import torch
 from pl_bolts.models.autoencoders.components import (
     resnet50_decoder,
