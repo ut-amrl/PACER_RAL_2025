@@ -177,7 +177,6 @@ class PACERDataset(Dataset):
                 'pref' : pref.copy()}
 
     def get_regular_sample(self, idx):
-        # print("regular")
         context, i1, pref = self.context_data[idx % len(self.context_data)]
         bev_costmap = self.costmaps[i1][idx // len(self.context_data)]
         bev_image = self.bev_images[idx // len(self.context_data)]

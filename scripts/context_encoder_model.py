@@ -6,7 +6,6 @@ from pl_bolts.models.autoencoders.components import (
     resnet50_encoder,
 )
 from pl_bolts.datamodules import CIFAR10DataModule, ImagenetDataModule
-from image_plotting_callback import ImageSampler
 from argparse import ArgumentParser
 from context_dataset import ContextDataModule
 

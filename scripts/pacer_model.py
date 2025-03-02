@@ -107,7 +107,7 @@ class UNET(pl.LightningModule):
 
 
         if paths_config is not None:
-            vae = VAE().load_from_checkpoint(os.path.join(project_dir, paths_config['Paths']['type1_vae32']))
+            vae = VAE().load_from_checkpoint(os.path.join(project_dir, paths_config['Paths']['context_encoder_weights']))
             self.patch_encoder = vae.encoder
         else:
             self.patch_encoder = VAE().encoder
@@ -164,7 +164,7 @@ class UNET(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         patches = batch['context']
         bev_img = batch['bev_image']
-        costmap = batch['costmap']
+        costmap = batch['bev_costmap']
 
         bev_img = bev_img.float()
         patches = patches.float()
@@ -199,7 +199,7 @@ class UNET(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         patches = batch['context']
         bev_img = batch['bev_image']
-        costmap = batch['costmap']
+        costmap = batch['bev_costmap']
 
         bev_img = bev_img.float()
         patches = patches.float()
